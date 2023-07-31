@@ -11,6 +11,9 @@ import org.apache.spark.util.DoubleAccumulator;
 import scala.Option;
 import scala.Tuple2;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
@@ -18,27 +21,28 @@ import java.util.stream.Stream;
 public class main {
     //split into targets and not
     private static SparkConf conf;
-    private static final int MAX_PARTICLES = 3;
-    private static final String training_file = "Wine/Training.txt";
+    private static final int MAX_PARTICLES = 10;
+    private static final String training_file = "phplE7q6h.arff";
 //    Iris/Training.txt 4
 //ArtificalDataset1/Data.txt 2
 //    Wine/Training.txt 13
-    private static final String testing_file = "Wine/Testing.txt";
+    private static final String testing_file = "phplE7q6h.arff";
     //    Iris/Test.txt
 //    ArtificalDataset1/test.txt
     //    Wine/Testing.txt
 
-    private static final int MAX_ITERATION = 6;
+    private static final int MAX_ITERATION = 100;
     private static SparkContext SparkCon;
     private static JavaSparkContext sc;
     private static ArrayList<Point> swarm = new ArrayList<Point>();
     public static HashMap<String, Double> globalMax = new HashMap<String, Double>();
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
+        FileWriter fw = new FileWriter(new File("output.txt"));
 
         // setting the configuration for Spark Driver Program
         Logger.getLogger("org").setLevel(Level.ERROR);
-        conf = new SparkConf().setAppName("SparkPSO").setMaster("spark://localhost:7077");
+        conf = new SparkConf().setAppName("SparkFire").setMaster("spark://spark.cs.ndsu.edu:7077");
         conf.set("spark.executor.instances", "2");
 
         // conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
@@ -80,7 +84,7 @@ public class main {
         //initilize swarm of points
         for(int i = 0; i<MAX_PARTICLES;i++){
             for(String s : class_label){
-                double[] temp = new double[13];
+                double[] temp = new double[14];
                 for (int j = 0; j < temp.length; j++) {
                     temp[j]=Math.random()*10;
                 }
@@ -112,9 +116,9 @@ public class main {
             int q = 0;
                 double total = 0;
             for(String s : accumlater.value().keySet()){
-                System.out.println(String.format("%s : %f",s,accumlater.value().get(s)));
+                fw.write(String.format("%s : %f\n",s,accumlater.value().get(s)));
                 total+=accumlater.value().get(s);
-                System.out.println(String.format("%s : %s", swarm.get(q).toString(), Arrays.toString(swarm.get(q).vals)));
+                fw.write(String.format("%s : %s\n", swarm.get(q).toString(), Arrays.toString(swarm.get(q).vals)));
                 q++;
             }
 
@@ -128,13 +132,14 @@ public class main {
         {
             classifer.put(g.className, g.vals);
         }
-        evaluate(classifer);
+        evaluate(classifer, fw);
         long EndTime = System.currentTimeMillis();
-        System.out.println((EndTime-StartTime));
-
+        fw.write(String.format("TOTAL RUNTIME: %d\n",EndTime-StartTime));
+        fw.flush();
+        fw.close();
 
     }
-    public static double evaluate(HashMap<String, double []> classifier){
+    public static double evaluate(HashMap<String, double []> classifier, FileWriter fw) throws IOException {
         String result="";
         JavaRDD<String> file = sc.textFile(testing_file,6);
         JavaPairRDD<String,String> Dataset_preprocessing=file.mapToPair(line->new Tuple2<>
@@ -169,13 +174,13 @@ public class main {
         });
 
 
-        System.out.println("--------------- Final Results ---------------------");
+        fw.write("--------------- Final Results ---------------------\n");
         result+=System.lineSeparator()+"--------------- Final Results ---------------------";
-        System.out.println("Number of incorrectly classified instances : "+MissClassification.value());
+        fw.write("Number of incorrectly classified instances : "+MissClassification.value() + "\n");
         result+=System.lineSeparator()+("Number of incorrectly classified instances : "+MissClassification.value());
-        System.out.println("Accuarcy :"+(100.0-(MissClassification.value()/NumberOfInstance.value())*100.0));
+        fw.write("Accuarcy :"+(100.0-(MissClassification.value()/NumberOfInstance.value())*100.0) + "\n");
         result+=System.lineSeparator()+("Accuarcy :"+(100.0-(MissClassification.value()/NumberOfInstance.value())*100.0));
-        System.out.println("Miss-classification rate : "+MissClassification.value()/NumberOfInstance.value());
+        fw.write("Miss-classification rate : "+MissClassification.value()/NumberOfInstance.value() + "\n");
         result+=System.lineSeparator()+("Miss-classification rate : "+MissClassification.value()/NumberOfInstance.value());
 
         Broadcast_classifer.unpersist(true);
