@@ -21,7 +21,7 @@ import java.util.stream.Stream;
 public class main {
     //split into targets and not
     private static SparkConf conf;
-    private static final int MAX_PARTICLES = 200;
+    private static final int MAX_PARTICLES = 100;
     private static final String training_file = "SEA_50000.arff";
 //    Iris/Training.txt 4
 //ArtificalDataset1/Data.txt 2
@@ -33,7 +33,7 @@ public class main {
 //    ArtificalDataset1/test.txt
     //    Wine/Testing.txt
 
-    private static final int MAX_ITERATION = 500;
+    private static final int MAX_ITERATION = 200;
     private static SparkContext SparkCon;
     private static JavaSparkContext sc;
     private static ArrayList<Point> swarm = new ArrayList<Point>();
@@ -46,7 +46,7 @@ public class main {
         Logger.getLogger("org").setLevel(Level.ERROR);
         conf = new SparkConf().setAppName("SparkFire");
 //                .setMaster("spark://spark.cs.ndsu.edu:7077");
-        conf.set("spark.executor.instances", "2");
+        conf.set("spark.executor.instances", "6");
 
         // conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
         // 5 cores on each workers - Local Mode
