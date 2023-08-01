@@ -6,6 +6,12 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.util.DoubleAccumulator;
 import scala.Option;
@@ -22,18 +28,19 @@ public class main {
     //split into targets and not
     private static SparkConf conf;
     private static final int MAX_PARTICLES = 100;
-    private static final String training_file = "SEA_50000.arff";
+    private static final String training_file = "poker.arff";
 //    Iris/Training.txt 4
 //ArtificalDataset1/Data.txt 2
 //    Wine/Training.txt 13
 //    SEA_50000.arff 3
 //    phplE7q6h.arff 14
-    private static final String testing_file = "SEA_50000.arff";
+//    poker.arff 10
+    private static final String testing_file = "poker.arff";
     //    Iris/Test.txt
 //    ArtificalDataset1/test.txt
     //    Wine/Testing.txt
 
-    private static final int MAX_ITERATION = 200;
+    private static final int MAX_ITERATION = 150;
     private static SparkContext SparkCon;
     private static JavaSparkContext sc;
     private static ArrayList<Point> swarm = new ArrayList<Point>();
@@ -46,7 +53,7 @@ public class main {
         Logger.getLogger("org").setLevel(Level.ERROR);
         conf = new SparkConf().setAppName("SparkFire");
 //                .setMaster("spark://spark.cs.ndsu.edu:7077");
-        conf.set("spark.executor.instances", "6");
+        conf.set("spark.executor.instances", "16");
 
         // conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
         // 5 cores on each workers - Local Mode
@@ -59,12 +66,13 @@ public class main {
 
         //Read Data File
         JavaRDD<String> file = sc.textFile(training_file, 6);
-
         //create PairRDD Dataset from file <Features,Class Label>
         JavaPairRDD<String, String> Dataset_preprocessing = file.mapToPair(line -> new Tuple2<>
                 (
                         line.substring(line.lastIndexOf(',') + 1),
                         line.substring(0, line.lastIndexOf(','))
+//                        line.substring(0, line.indexOf(',')),
+//                        line.substring(line.indexOf(',')+1)
                 )
         );
 
@@ -87,7 +95,7 @@ public class main {
         //initilize swarm of points
         for(int i = 0; i<MAX_PARTICLES;i++){
             for(String s : class_label){
-                double[] temp = new double[3];
+                double[] temp = new double[10];
                 for (int j = 0; j < temp.length; j++) {
                     temp[j]=Math.random()*10;
                 }
@@ -181,7 +189,7 @@ public class main {
         result+=System.lineSeparator()+"--------------- Final Results ---------------------";
         fw.write("Number of incorrectly classified instances : "+MissClassification.value() + "\n");
         result+=System.lineSeparator()+("Number of incorrectly classified instances : "+MissClassification.value());
-        fw.write("Accuarcy :"+(100.0-(MissClassification.value()/NumberOfInstance.value())*100.0) + "\n");
+        fw.write("Accuracy :"+(100.0-(MissClassification.value()/NumberOfInstance.value())*100.0) + "\n");
         result+=System.lineSeparator()+("Accuarcy :"+(100.0-(MissClassification.value()/NumberOfInstance.value())*100.0));
         fw.write("Miss-classification rate : "+MissClassification.value()/NumberOfInstance.value() + "\n");
         result+=System.lineSeparator()+("Miss-classification rate : "+MissClassification.value()/NumberOfInstance.value());
