@@ -21,17 +21,19 @@ import java.util.stream.Stream;
 public class main {
     //split into targets and not
     private static SparkConf conf;
-    private static final int MAX_PARTICLES = 10;
-    private static final String training_file = "phplE7q6h.arff";
+    private static final int MAX_PARTICLES = 200;
+    private static final String training_file = "SEA_50000.arff";
 //    Iris/Training.txt 4
 //ArtificalDataset1/Data.txt 2
 //    Wine/Training.txt 13
-    private static final String testing_file = "phplE7q6h.arff";
+//    SEA_50000.arff 3
+//    phplE7q6h.arff 14
+    private static final String testing_file = "SEA_50000.arff";
     //    Iris/Test.txt
 //    ArtificalDataset1/test.txt
     //    Wine/Testing.txt
 
-    private static final int MAX_ITERATION = 100;
+    private static final int MAX_ITERATION = 500;
     private static SparkContext SparkCon;
     private static JavaSparkContext sc;
     private static ArrayList<Point> swarm = new ArrayList<Point>();
@@ -42,12 +44,13 @@ public class main {
 
         // setting the configuration for Spark Driver Program
         Logger.getLogger("org").setLevel(Level.ERROR);
-        conf = new SparkConf().setAppName("SparkFire").setMaster("spark://spark.cs.ndsu.edu:7077");
+        conf = new SparkConf().setAppName("SparkFire");
+//                .setMaster("spark://spark.cs.ndsu.edu:7077");
         conf.set("spark.executor.instances", "2");
 
         // conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
         // 5 cores on each workers - Local Mode
-        //conf.set("spark.executor.cores", "5");
+        conf.set("spark.executor.cores", "16");
 
 
         SparkCon = new SparkContext(conf);
@@ -55,7 +58,7 @@ public class main {
         sc.setCheckpointDir("checkpoint");
 
         //Read Data File
-        JavaRDD<String> file = sc.textFile(training_file, 2);
+        JavaRDD<String> file = sc.textFile(training_file, 6);
 
         //create PairRDD Dataset from file <Features,Class Label>
         JavaPairRDD<String, String> Dataset_preprocessing = file.mapToPair(line -> new Tuple2<>
@@ -84,7 +87,7 @@ public class main {
         //initilize swarm of points
         for(int i = 0; i<MAX_PARTICLES;i++){
             for(String s : class_label){
-                double[] temp = new double[14];
+                double[] temp = new double[3];
                 for (int j = 0; j < temp.length; j++) {
                     temp[j]=Math.random()*10;
                 }
