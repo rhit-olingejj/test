@@ -50,15 +50,15 @@ public class main {
         FileWriter fw = new FileWriter(new File("output.txt"));
 
         // setting the configuration for Spark Driver Program
-        Logger.getLogger("org").setLevel(Level.ERROR);
         conf = new SparkConf().setAppName("SparkFire");
 //                .setMaster("spark://spark.cs.ndsu.edu:7077");
-        conf.set("spark.executor.instances", "16");
+        conf.set("spark.executor.instances", "1");
+        conf.set("spark.submit.deployMode", "client");
+        conf.set("spark.executor.cores", "1");
+
 
         // conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
         // 5 cores on each workers - Local Mode
-        conf.set("spark.executor.cores", "16");
-
 
         SparkCon = new SparkContext(conf);
         sc = new JavaSparkContext(SparkCon);
@@ -92,7 +92,7 @@ public class main {
         long StartTime = System.currentTimeMillis();
         long iteration = 0;
         //iterate for every class
-        //initilize swarm of points
+        //initialize swarm of points
         for(int i = 0; i<MAX_PARTICLES;i++){
             for(String s : class_label){
                 double[] temp = new double[10];
@@ -127,9 +127,7 @@ public class main {
             int q = 0;
                 double total = 0;
             for(String s : accumlater.value().keySet()){
-                fw.write(String.format("%s : %f\n",s,accumlater.value().get(s)));
                 total+=accumlater.value().get(s);
-                fw.write(String.format("%s : %s\n", swarm.get(q).toString(), Arrays.toString(swarm.get(q).vals)));
                 q++;
             }
 
@@ -143,14 +141,14 @@ public class main {
         {
             classifer.put(g.className, g.vals);
         }
-        evaluate(classifer, fw);
+        fw.write(evaluate(classifer));
         long EndTime = System.currentTimeMillis();
         fw.write(String.format("TOTAL RUNTIME: %d\n",EndTime-StartTime));
         fw.flush();
         fw.close();
-
     }
-    public static double evaluate(HashMap<String, double []> classifier, FileWriter fw) throws IOException {
+
+    public static String evaluate(HashMap<String, double []> classifier) throws IOException {
         String result="";
         JavaRDD<String> file = sc.textFile(testing_file,6);
         JavaPairRDD<String,String> Dataset_preprocessing=file.mapToPair(line->new Tuple2<>
@@ -185,30 +183,22 @@ public class main {
         });
 
 
-        fw.write("--------------- Final Results ---------------------\n");
-        result+=System.lineSeparator()+"--------------- Final Results ---------------------";
-        fw.write("Number of incorrectly classified instances : "+MissClassification.value() + "\n");
-        result+=System.lineSeparator()+("Number of incorrectly classified instances : "+MissClassification.value());
-        fw.write("Accuracy :"+(100.0-(MissClassification.value()/NumberOfInstance.value())*100.0) + "\n");
-        result+=System.lineSeparator()+("Accuarcy :"+(100.0-(MissClassification.value()/NumberOfInstance.value())*100.0));
-        fw.write("Miss-classification rate : "+MissClassification.value()/NumberOfInstance.value() + "\n");
-        result+=System.lineSeparator()+("Miss-classification rate : "+MissClassification.value()/NumberOfInstance.value());
+        result+=System.lineSeparator()+"--------------- Final Results ---------------------\n";
+        result+=System.lineSeparator()+("Number of incorrectly classified instances : "+MissClassification.value()+"\n");
+        result+=System.lineSeparator()+("Accuracy :"+(100.0-(MissClassification.value()/NumberOfInstance.value())*100.0)+"\n");
+        result+=System.lineSeparator()+("Miss-classification rate : "+MissClassification.value()/NumberOfInstance.value()+
+"\n");
 
         Broadcast_classifer.unpersist(true);
         Broadcast_classifer.destroy();
         NumberOfInstance.reset();
         NumberOfInstance.reset();
-    return 0;
-    }
-
-    public static int randomWalk() {
-        return (int) ((Math.random() * 2) - 1);
+    return result;
     }
 
     public static double moveDistanceX(Point p1, Point p2, int dim, HashMap<String,Double> bright, long count) {
         return ((bright.get(p1.toString())/count)*Math.exp(-calcEuclidDistance(p1.vals, p2.vals)) * (p2.vals[dim] - p1.vals[dim]) + Math.random());
     }
-
 
     public static double calcFitness(Point p, Tuple2<String, double[]> e) throws Exception {
         double ret = 0;
