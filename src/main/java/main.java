@@ -41,6 +41,7 @@ public class main {
     //    Wine/Testing.txt
 
     private static final int MAX_ITERATION = 150;
+    private static final int NUM_NODES = 1;
     private static SparkContext SparkCon;
     private static JavaSparkContext sc;
     private static ArrayList<Point> swarm = new ArrayList<Point>();
@@ -51,10 +52,14 @@ public class main {
 
         // setting the configuration for Spark Driver Program
         conf = new SparkConf().setAppName("SparkFire");
-//                .setMaster("spark://spark.cs.ndsu.edu:7077");
-        conf.set("spark.executor.instances", "1");
-        conf.set("spark.submit.deployMode", "client");
-        conf.set("spark.executor.cores", "1");
+//        conf.setMaster("spark://localhost:7077");
+//        conf.set("spark.executor.instances", "1");
+//        conf.set("spark.submit.deployMode", "client");
+//        conf.set("spark.shuffle.service.enabled", "true");
+//        conf.set("spark.dynamicAllocation.enabled", "true");
+//        conf.set("spark.dynamicAllocation.minExecutors", "1");
+//        conf.set("spark.dynamicAllocation.maxExecutors", "1");
+//        conf.set("spark.dynamicAllocation.initialExecutors", "1");
 
 
         // conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
@@ -62,10 +67,10 @@ public class main {
 
         SparkCon = new SparkContext(conf);
         sc = new JavaSparkContext(SparkCon);
-        sc.setCheckpointDir("checkpoint");
+//        sc.setCheckpointDir("checkpoint");
 
         //Read Data File
-        JavaRDD<String> file = sc.textFile(training_file, 6);
+        JavaRDD<String> file = sc.textFile(training_file, NUM_NODES);
         //create PairRDD Dataset from file <Features,Class Label>
         JavaPairRDD<String, String> Dataset_preprocessing = file.mapToPair(line -> new Tuple2<>
                 (
@@ -150,7 +155,7 @@ public class main {
 
     public static String evaluate(HashMap<String, double []> classifier) throws IOException {
         String result="";
-        JavaRDD<String> file = sc.textFile(testing_file,6);
+        JavaRDD<String> file = sc.textFile(testing_file,NUM_NODES);
         JavaPairRDD<String,String> Dataset_preprocessing=file.mapToPair(line->new Tuple2<>
                 (
                         line.substring(line.lastIndexOf(',')+1),
