@@ -1,17 +1,9 @@
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.Metadata;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.util.DoubleAccumulator;
 import scala.Option;
@@ -21,27 +13,15 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 public class main {
-    //split into targets and not
     private static SparkConf conf;
     private static final int MAX_PARTICLES = 100;
     private static final String training_file = "poker.arff";
-//    Iris/Training.txt 4
-//ArtificalDataset1/Data.txt 2
-//    Wine/Training.txt 13
-//    SEA_50000.arff 3
-//    phplE7q6h.arff 14
-//    poker.arff 10
     private static final String testing_file = "poker.arff";
-    //    Iris/Test.txt
-//    ArtificalDataset1/test.txt
-    //    Wine/Testing.txt
-
     private static final int MAX_ITERATION = 150;
-    private static final int NUM_NODES = 1;
+    private static final int NUM_NODES = 64;
     private static SparkContext SparkCon;
     private static JavaSparkContext sc;
     private static ArrayList<Point> swarm = new ArrayList<Point>();
@@ -52,40 +32,22 @@ public class main {
 
         // setting the configuration for Spark Driver Program
         conf = new SparkConf().setAppName("SparkFire");
-//        conf.setMaster("spark://localhost:7077");
-//        conf.set("spark.executor.instances", "1");
-//        conf.set("spark.submit.deployMode", "client");
-//        conf.set("spark.shuffle.service.enabled", "true");
-//        conf.set("spark.dynamicAllocation.enabled", "true");
-//        conf.set("spark.dynamicAllocation.minExecutors", "1");
-//        conf.set("spark.dynamicAllocation.maxExecutors", "1");
-//        conf.set("spark.dynamicAllocation.initialExecutors", "1");
 
-
-        // conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
-        // 5 cores on each workers - Local Mode
 
         SparkCon = new SparkContext(conf);
         sc = new JavaSparkContext(SparkCon);
-//        sc.setCheckpointDir("checkpoint");
 
-        //Read Data File
         JavaRDD<String> file = sc.textFile(training_file, NUM_NODES);
-        //create PairRDD Dataset from file <Features,Class Label>
         JavaPairRDD<String, String> Dataset_preprocessing = file.mapToPair(line -> new Tuple2<>
                 (
                         line.substring(line.lastIndexOf(',') + 1),
                         line.substring(0, line.lastIndexOf(','))
-//                        line.substring(0, line.indexOf(',')),
-//                        line.substring(line.indexOf(',')+1)
                 )
         );
 
-        //Extract the Classes labels from Dataset
         List<String> class_label = Dataset_preprocessing.map(v -> v._1.trim()).distinct().collect();
 
         JavaPairRDD<String, double[]> dataset;
-        //Normalized DataSet
         dataset = Dataset_preprocessing.mapValues(v -> Stream.of(v.split(",")).mapToDouble(Double::parseDouble).toArray());
 
         dataset.persist(StorageLevel.MEMORY_ONLY_SER());
@@ -96,8 +58,6 @@ public class main {
         long count = dataset.count();
         long StartTime = System.currentTimeMillis();
         long iteration = 0;
-        //iterate for every class
-        //initialize swarm of points
         for(int i = 0; i<MAX_PARTICLES;i++){
             for(String s : class_label){
                 double[] temp = new double[10];
@@ -113,24 +73,21 @@ public class main {
             dataset.foreach(e -> {
                 for (Point p : BroadcastGroupOfParticles.getValue()) {
                     if (e._1.trim().equals(p.className)) {
-                        double distance = calcFitness(p,e);
+                        double distance = 1/calcFitness(p,e);
                         accumlater.add(new Tuple2<>(p.toString(), distance));
-
                     }
                 }
             });
                 for(int i =0;i< swarm.size();i++){
                     for(int j=0;j<swarm.size();j++){
                         if(swarm.get(i).className.equals(swarm.get(j).className) && accumlater.value().get(swarm.get(i).toString())/count<calcBrightness(swarm.get(i),swarm.get(j), accumlater.value(),count)){
-                           //movement
                             for(int k = 0;k<swarm.get(i).vals.length; k ++){
                                 swarm.get(i).vals[k]+=moveDistanceX(swarm.get(i),swarm.get(j),k, accumlater.value(), count);
                             }
                         }
                     }
                 }
-            int q = 0;
-                double total = 0;
+            int q = 0; double total = 0;
             for(String s : accumlater.value().keySet()){
                 total+=accumlater.value().get(s);
                 q++;
@@ -139,7 +96,7 @@ public class main {
             accumlater.reset();
             BroadcastGroupOfParticles.unpersist(true);
             BroadcastGroupOfParticles.destroy();
-            ++iteration;
+            iteration++;
         }
         HashMap<String,double[]> classifer = new HashMap<>();
         for(Point g: swarm)
@@ -155,7 +112,7 @@ public class main {
 
     public static String evaluate(HashMap<String, double []> classifier) throws IOException {
         String result="";
-        JavaRDD<String> file = sc.textFile(testing_file,NUM_NODES);
+        JavaRDD<String> file = sc.textFile(testing_file, NUM_NODES);
         JavaPairRDD<String,String> Dataset_preprocessing=file.mapToPair(line->new Tuple2<>
                 (
                         line.substring(line.lastIndexOf(',')+1),
@@ -173,7 +130,6 @@ public class main {
         DoubleAccumulator NumberOfInstance = new DoubleAccumulator();
         NumberOfInstance.register(SparkCon, Option.apply("fitnees_value"), false);
 
-
         dataset.foreach(e-> {
             NumberOfInstance.add(1);
             double min=0;
@@ -186,7 +142,6 @@ public class main {
             }
             if (!(Predicate_class.trim().equals(e._1.trim()))) {MissClassification.add(1);}
         });
-
 
         result+=System.lineSeparator()+"--------------- Final Results ---------------------\n";
         result+=System.lineSeparator()+("Number of incorrectly classified instances : "+MissClassification.value()+"\n");
@@ -210,7 +165,6 @@ public class main {
             if(p.className.equals(e._1.trim())){
                 ret+= calcEuclidDistance(p.vals, e._2);
             }
-
         return ret;
     }
 
