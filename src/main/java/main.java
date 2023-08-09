@@ -73,7 +73,7 @@ public class main {
             dataset.foreach(e -> {
                 for (Point p : BroadcastGroupOfParticles.getValue()) {
                     if (e._1.trim().equals(p.className)) {
-                        double distance = 1/calcFitness(p,e);
+                        double distance = calcFitness(p,e);
                         accumlater.add(new Tuple2<>(p.toString(), distance));
                     }
                 }
